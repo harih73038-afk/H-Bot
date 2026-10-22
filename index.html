@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>H Bot</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b0f0c;color:#f1f5f2}
+.app{max-width:760px;margin:auto;height:100dvh;display:flex;flex-direction:column}
+header{padding:18px 16px 12px;border-bottom:1px solid #263029;display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:14px;background:#d7ff67;color:#10150f;display:grid;place-items:center;font-weight:900;font-size:21px}
+h1{font-size:20px;margin:0}.sub{font-size:12px;color:#9ca9a0;margin-top:2px}
+#chat{flex:1;overflow:auto;padding:16px}
+.msg{display:flex;margin:10px 0}.msg.user{justify-content:flex-end}
+.bubble{max-width:86%;padding:12px 14px;border-radius:16px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.user .bubble{background:#d7ff67;color:#10150f;border-bottom-right-radius:5px}
+.bot .bubble{background:#172019;border:1px solid #263029;border-bottom-left-radius:5px}
+#typing{display:none;padding:0 16px 8px;color:#9ca9a0;font-size:13px}
+.composer{padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #263029;background:#0b0f0c;display:flex;gap:8px}
+textarea{flex:1;resize:none;min-height:48px;max-height:130px;border:1px solid #344038;border-radius:16px;background:#111711;color:#fff;padding:13px;font:inherit;outline:none}
+button{border:0;border-radius:15px;background:#d7ff67;color:#10150f;font-weight:800;padding:0 18px;font-size:15px}
+.quick{display:flex;gap:7px;overflow:auto;padding:0 12px 10px}.quick button{white-space:nowrap;padding:9px 12px;background:#172019;color:#dbe4de;border:1px solid #2c382f;font-weight:600;font-size:13px}
+.note{padding:8px 16px;color:#718078;font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">H</div><div><h1>H Bot</h1><div class="sub">Your personal AI assistant</div></div></header>
+<div id="chat"></div>
+<div id="typing">H Bot is thinking…</div>
+<div class="quick">
+<button onclick="quick('Help me find a job')">💼 Job</button>
+<button onclick="quick('Help me improve my mechanical fitter skills')">🔧 Mechanical</button>
+<button onclick="quick('Help me practice English speaking')">🗣️ English</button>
+<button onclick="quick('Help me plan my money')">💰 Money</button>
+</div>
+<div class="note">H Bot can make mistakes. Verify important information.</div>
+<div class="composer">
+<textarea id="input" placeholder="Message H Bot…" rows="1"></textarea>
+<button id="send">Send</button>
+</div>
+</div>
+<script>
+const chatEl=document.getElementById('chat'), input=document.getElementById('input'), send=document.getElementById('send'), typing=document.getElementById('typing');
+let messages=JSON.parse(localStorage.getItem('hbot_messages')||'[]');
+
+function save(){localStorage.setItem('hbot_messages',JSON.stringify(messages.slice(-30)))}
+function render(){
+  chatEl.innerHTML='';
+  for(const m of messages){
+    const row=document.createElement('div'); row.className='msg '+(m.role==='user'?'user':'bot');
+    const b=document.createElement('div'); b.className='bubble'; b.textContent=m.content;
+    row.appendChild(b); chatEl.appendChild(row);
+  }
+  chatEl.scrollTop=chatEl.scrollHeight;
+}
+function add(role,content){messages.push({role,content});save();render()}
+function quick(t){input.value=t; input.focus(); sendMessage()}
+async function sendMessage(){
+  const text=input.value.trim(); if(!text || send.disabled)return;
+  input.value=''; add('user',text); send.disabled=true; typing.style.display='block';
+  try{
+    const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:messages.slice(-20)})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Request failed');
+    add('model',data.reply||'No response received.');
+  }catch(e){add('model','Sorry, H Bot could not connect right now. Check the server/API setup and try again.');}
+  finally{typing.style.display='none';send.disabled=false;input.focus()}
+}
+send.onclick=sendMessage;
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});
+render();
+if(!messages.length)add('model','Vanakkam! 👋 Naan H Bot. Enna venum sollu — job, mechanical skills, English, money, technology, daily decisions, anything. I’ll try to help practically.');
+</script>
+</body>
+</html>
